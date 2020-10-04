@@ -194,7 +194,6 @@ do
 	# Do not use I/O as a source of randomness
 	write "$queue/add_random" 0
 
-
 	# Reduce heuristic read-ahead in exchange for I/O latency
 	write "$queue/read_ahead_kb" 16
 
