@@ -4,8 +4,8 @@
 # Maximum unsigned integer size in C
 UINT_MAX="4294967295"
 
-# Duration in nnaoseconds of one scheduling period
-SCHED_PERIOD="$((2 * 1000 * 1000))"
+# Duration in nanoseconds of one scheduling period
+SCHED_PERIOD="$((4 * 1000 * 1000))"
 
 # How many tasks should we have at a maximum in one scheduling period
 SCHED_TASKS="10"
@@ -127,12 +127,18 @@ then
 
 	# Schedule tasks on their origin CPU if possible
 	write /sys/kernel/debug/sched_features TTWU_QUEUE
+
+	# Use a high resolution timer for the scheduler
+	write /sys/kernel/debug/sched_features HRTICK
 fi
 
 if [[ -d "/dev/stune/" ]]
 then
 	# Prefer to schedule top-app tasks on idle CPUs
 	write /dev/stune/top-app/schedtune.prefer_idle 1
+
+	# Mark top-app as boosted, find high-performing CPUs
+	write /dev/stune/top-app/schedtune.boost 1
 fi
 
 # Loop over each CPU in the system
