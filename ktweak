@@ -69,6 +69,9 @@ write /proc/sys/kernel/sched_tunable_scaling 0
 # Reduce the maximum scheduling period for lower latency
 write /proc/sys/kernel/sched_latency_ns "$SCHED_PERIOD"
 
+# Execute child process before parent after fork
+write /proc/sys/kernel/sched_child_runs_first 1
+
 # Schedule 10 tasks in the guarenteed sched period
 write /proc/sys/kernel/sched_min_granularity_ns "$((SCHED_PERIOD / SCHED_TASKS))"
 
@@ -163,9 +166,9 @@ done
 find /sys/devices/system/cpu/ -name schedutil -type d | while IFS= read -r governor
 do
 	# Consider changing frequencies once per scheduling period
-	write "$governor/up_rate_limit_us" 5000
-	write "$governor/down_rate_limit_us" 5000
-	write "$governor/rate_limit_us" 5000
+	write "$governor/up_rate_limit_us" "$((SCHED_PERIOD / 1000))"
+	write "$governor/down_rate_limit_us" "$((SCHED_PERIOD / 1000))"
+	write "$governor/rate_limit_us" "$((SCHED_PERIOD / 1000))"
 
 	# Jump to max frequency at 90% load
 	write "$governor/hispeed_load" 90
@@ -176,8 +179,8 @@ done
 find /sys/devices/system/cpu/ -name interactive -type d | while IFS= read -r governor
 do
 	# Consider changing frequencies once per scheduling period
-	write "$governor/timer_rate" 5000
-	write "$governor/min_sample_time" 5000
+	write "$governor/timer_rate" "$((SCHED_PERIOD / 1000))"
+	write "$governor/min_sample_time" "$((SCHED_PERIOD / 1000))"
 
 	# Jump to max frequency at 90% load
 	write "$governor/go_hispeed_load" 90
