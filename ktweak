@@ -130,7 +130,6 @@ then
 
 	# Schedule tasks on their origin CPU if possible
 	write /sys/kernel/debug/sched_features TTWU_QUEUE
-
 fi
 
 if [[ -d "/dev/stune/" ]]
