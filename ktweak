@@ -1,14 +1,11 @@
 #!/usr/bin/env bash
 # Written by Draco (tytydraco @ GitHub)
 
-# Maximum unsigned integer size in C
-UINT_MAX="4294967295"
-
 # Duration in nanoseconds of one scheduling period
-SCHED_PERIOD="$((1 * 1000 * 1000))"
+SCHED_PERIOD="$((16 * 1000 * 1000))"
 
 # How many tasks should we have at a maximum in one scheduling period
-SCHED_TASKS="10"
+SCHED_TASKS="5"
 
 write() {
 	# Bail out if file does not exist
@@ -40,7 +37,7 @@ grep -q android /proc/cmdline && ANDROID=true
 
 # Log the date and time for records sake
 echo "Time of execution: $(date)"
-echo "Branch: master"
+echo "Branch: battery"
 
 # Sync to data in the rare case a device crashes
 sync
@@ -51,12 +48,12 @@ sync
 [[ "$ANDROID" == true ]] && for _ in $(seq 2)
 do
 	# Migrate tasks down at this much load
-	write /proc/sys/kernel/sched_downmigrate "80 80"
-	write /proc/sys/kernel/sched_group_downmigrate 80
+	write /proc/sys/kernel/sched_downmigrate "100 100"
+	write /proc/sys/kernel/sched_group_downmigrate 100
 
 	# Migrate tasks up at this much load
-	write /proc/sys/kernel/sched_upmigrate "80 80"
-	write /proc/sys/kernel/sched_group_upmigrate 80
+	write /proc/sys/kernel/sched_upmigrate "100 100"
+	write /proc/sys/kernel/sched_group_upmigrate 100
 done
 
 # Limit max perf event processing time to this much CPU usage
@@ -83,11 +80,11 @@ write /proc/sys/kernel/sched_wakeup_granularity_ns "$((SCHED_PERIOD / 2))"
 # Reduce the frequency of task migrations
 write /proc/sys/kernel/sched_migration_cost_ns 5000000
 
-# Always allow sched boosting on top-app tasks
-[[ "$ANDROID" == true ]] && write /proc/sys/kernel/sched_min_task_util_for_colocation 0
+# Reduce the tendency that top-app tasks are sched boosted
+[[ "$ANDROID" == true ]] && write /proc/sys/kernel/sched_min_task_util_for_colocation 51
 
-# Improve real time latencies by reducing the scheduler migration time
-write /proc/sys/kernel/sched_nr_migrate 8
+# Improve SCHED_OTHER trhoughput by increasing the scheduler migration batch size
+write /proc/sys/kernel/sched_nr_migrate 128
 
 # Disable scheduler statistics to reduce overhead
 write /proc/sys/kernel/sched_schedstats 0
@@ -111,7 +108,7 @@ write /proc/sys/vm/dirty_writeback_centisecs 3000
 write /proc/sys/vm/page-cluster 0
 
 # Update /proc/stat less often to reduce jitter
-write /proc/sys/vm/stat_interval 10
+write /proc/sys/vm/stat_interval 30
 
 # Swap to the swap device at a fair rate
 write /proc/sys/vm/swappiness 100
@@ -139,11 +136,11 @@ fi
 
 [[ "$ANDROID" == true ]] && if [[ -d "/dev/stune/" ]]
 then
-	# Prefer to schedule top-app tasks on idle CPUs
-	write /dev/stune/top-app/schedtune.prefer_idle 1
+	# Prefer not to schedule top-app tasks on idle CPUs
+	write /dev/stune/top-app/schedtune.prefer_idle 0
 
-	# Mark top-app as boosted, find high-performing CPUs
-	write /dev/stune/top-app/schedtune.boost 1
+	# Disable any existing top-app boost
+	write /dev/stune/top-app/schedtune.boost 0
 fi
 
 # Loop over each CPU in the system
@@ -172,9 +169,9 @@ do
 	write "$governor/down_rate_limit_us" "$((4 * SCHED_PERIOD / 1000))"
 	write "$governor/rate_limit_us" "$((SCHED_PERIOD / 1000))"
 
-	# Jump to hispeed frequency at this load percentage
-	write "$governor/hispeed_load" 90
-	write "$governor/hispeed_freq" "$UINT_MAX"
+	# Disable hispeed load boosting
+	write "$governor/hispeed_load" 100
+	write "$governor/hispeed_freq" 0
 done
 
 # Apply governor specific tunables for interactive
@@ -184,9 +181,9 @@ do
 	write "$governor/timer_rate" "$((SCHED_PERIOD / 1000))"
 	write "$governor/min_sample_time" "$((SCHED_PERIOD / 1000))"
 
-	# Jump to hispeed frequency at this load percentage
-	write "$governor/go_hispeed_load" 90
-	write "$governor/hispeed_freq" "$UINT_MAX"
+	# Disable hispeed load boosting
+	write "$governor/go_hispeed_load" 100
+	write "$governor/hispeed_freq" 0
 done
 
 for queue in /sys/block/*/queue
