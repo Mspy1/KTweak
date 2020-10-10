@@ -35,6 +35,8 @@ then
 	exit 1
 fi
 
+# Detect if we are running on Android
+grep -q android /proc/cmdline && ANDROID=true
 
 # Log the date and time for records sake
 echo "Time of execution: $(date)"
@@ -46,7 +48,7 @@ sync
 # We need to execute this multiple times because
 # sched_downmirate must be less than sched_upmigrate, and
 # sched_upmigrate must be greater than sched_downmigrate
-for _ in $(seq 2)
+[[ "$ANDROID" == true ]] && for _ in $(seq 2)
 do
 	# Migrate tasks down at this much load
 	write /proc/sys/kernel/sched_downmigrate "80 80"
@@ -63,16 +65,16 @@ write /proc/sys/kernel/perf_cpu_time_max_percent 5
 # Do not group task groups automatically
 write /proc/sys/kernel/sched_autogroup_enabled 0
 
+# Execute child process before parent after fork
+write /proc/sys/kernel/sched_child_runs_first 1
+
 # Preliminary requirement for the following values
 write /proc/sys/kernel/sched_tunable_scaling 0
 
 # Reduce the maximum scheduling period for lower latency
 write /proc/sys/kernel/sched_latency_ns "$SCHED_PERIOD"
 
-# Execute child process before parent after fork
-write /proc/sys/kernel/sched_child_runs_first 1
-
-# Schedule 10 tasks in the guarenteed sched period
+# Schedule this ratio of tasks in the guarenteed sched period
 write /proc/sys/kernel/sched_min_granularity_ns "$((SCHED_PERIOD / SCHED_TASKS))"
 
 # Require preeptive tasks to surpass half of a sched period in vmruntime
@@ -82,13 +84,16 @@ write /proc/sys/kernel/sched_wakeup_granularity_ns "$((SCHED_PERIOD / 2))"
 write /proc/sys/kernel/sched_migration_cost_ns 5000000
 
 # Always allow sched boosting on top-app tasks
-write /proc/sys/kernel/sched_min_task_util_for_colocation 0
+[[ "$ANDROID" == true ]] && write /proc/sys/kernel/sched_min_task_util_for_colocation 0
 
 # Improve real time latencies by reducing the scheduler migration time
 write /proc/sys/kernel/sched_nr_migrate 8
 
 # Disable scheduler statistics to reduce overhead
 write /proc/sys/kernel/sched_schedstats 0
+
+# Disable unnecessary printk logging
+write /proc/sys/kernel/printk_devkmsg off
 
 # Start non-blocking writeback later
 write /proc/sys/vm/dirty_background_ratio 10
@@ -132,7 +137,7 @@ then
 	write /sys/kernel/debug/sched_features TTWU_QUEUE
 fi
 
-if [[ -d "/dev/stune/" ]]
+[[ "$ANDROID" == true ]] && if [[ -d "/dev/stune/" ]]
 then
 	# Prefer to schedule top-app tasks on idle CPUs
 	write /dev/stune/top-app/schedtune.prefer_idle 1
@@ -164,10 +169,10 @@ find /sys/devices/system/cpu/ -name schedutil -type d | while IFS= read -r gover
 do
 	# Consider changing frequencies once per scheduling period
 	write "$governor/up_rate_limit_us" "$((SCHED_PERIOD / 1000))"
-	write "$governor/down_rate_limit_us" "$((SCHED_PERIOD / 1000))"
+	write "$governor/down_rate_limit_us" "$((4 * SCHED_PERIOD / 1000))"
 	write "$governor/rate_limit_us" "$((SCHED_PERIOD / 1000))"
 
-	# Jump to max frequency at 90% load
+	# Jump to hispeed frequency at this load percentage
 	write "$governor/hispeed_load" 90
 	write "$governor/hispeed_freq" "$UINT_MAX"
 done
@@ -179,7 +184,7 @@ do
 	write "$governor/timer_rate" "$((SCHED_PERIOD / 1000))"
 	write "$governor/min_sample_time" "$((SCHED_PERIOD / 1000))"
 
-	# Jump to max frequency at 90% load
+	# Jump to hispeed frequency at this load percentage
 	write "$governor/go_hispeed_load" 90
 	write "$governor/hispeed_freq" "$UINT_MAX"
 done
