@@ -68,6 +68,9 @@ write /proc/sys/kernel/sched_autogroup_enabled 0
 # Execute child process before parent after fork
 write /proc/sys/kernel/sched_child_runs_first 1
 
+# Disable AdaptiveLMK to prevent foreground apps from getting terminated often
+write /sys/module/lowmemorykiller/parameters/enable_adaptive_lmk 0
+
 # Preliminary requirement for the following values
 write /proc/sys/kernel/sched_tunable_scaling 0
 
