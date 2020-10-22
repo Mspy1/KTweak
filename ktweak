@@ -40,24 +40,10 @@ grep -q android /proc/cmdline && ANDROID=true
 
 # Log the date and time for records sake
 echo "Time of execution: $(date)"
-echo "Branch: master"
+echo "Branch: dev"
 
 # Sync to data in the rare case a device crashes
 sync
-
-# We need to execute this multiple times because
-# sched_downmirate must be less than sched_upmigrate, and
-# sched_upmigrate must be greater than sched_downmigrate
-[[ "$ANDROID" == true ]] && for _ in $(seq 2)
-do
-	# Migrate tasks down at this much load
-	write /proc/sys/kernel/sched_downmigrate "70 70"
-	write /proc/sys/kernel/sched_group_downmigrate 70
-
-	# Migrate tasks up at this much load
-	write /proc/sys/kernel/sched_upmigrate "70 70"
-	write /proc/sys/kernel/sched_group_upmigrate 70
-done
 
 # Limit max perf event processing time to this much CPU usage
 write /proc/sys/kernel/perf_cpu_time_max_percent 5
@@ -138,6 +124,7 @@ then
 
 	# Schedule tasks on their origin CPU if possible
 	write /sys/kernel/debug/sched_features TTWU_QUEUE
+
 fi
 
 [[ "$ANDROID" == true ]] && if [[ -d "/dev/stune/" ]]
@@ -207,9 +194,9 @@ do
 
 	# Do not use I/O as a source of randomness
 	write "$queue/add_random" 0
-
+	
 	# Reduce heuristic read-ahead in exchange for I/O latency
-	write "$queue/read_ahead_kb" 16
+	write "$queue/read_ahead_kb" 128
 
 	# Reduce the maximum number of I/O requests in exchange for latency
 	write "$queue/nr_requests" 64
