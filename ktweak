@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+i#!/usr/bin/env bash
 # Written by Draco (tytydraco @ GitHub)
 
 # Maximum unsigned integer size in C
@@ -193,12 +193,12 @@ do
 
 	# Do not use I/O as a source of randomness
 	write "$queue/add_random" 0
+
+        # Disable I/O statistics accounting
+	write "$queue/io_stats" 0
 	
 	# Reduce heuristic read-ahead in exchange for I/O latency
 	write "$queue/read_ahead_kb" 128
-	
-	# Disable I/O statistics accounting
-	write "$queue/io_stats" 0
 
 	# Reduce the maximum number of I/O requests in exchange for latency
 	write "$queue/nr_requests" 64
