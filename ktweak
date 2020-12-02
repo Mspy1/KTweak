@@ -105,15 +105,6 @@ write /proc/sys/vm/swappiness 100
 # Prioritize page cache over simple file structure nodes
 write /proc/sys/vm/vfs_cache_pressure 200
 
-# Enable Explicit Congestion Control
-write /proc/sys/net/ipv4/tcp_ecn 1
-
-# Enable fast socket open for receiver and sender
-write /proc/sys/net/ipv4/tcp_fastopen 3
-
-# Disable SYN cookies
-write /proc/sys/net/ipv4/tcp_syncookies 0
-
 # Disable AdaptiveLMK to prevent foreground apps from getting terminated frequently
 write /sys/module/lowmemorykiller/parameters/enable_adaptive_lmk 0
 
